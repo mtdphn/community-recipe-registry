@@ -8,21 +8,21 @@ Qwen3.5-27B-FP8 + DFlash speculative decoding (`z-lab/Qwen3.5-27B-DFlash`, `num_
 sparkrun arena benchmark @community/qwen3.5-27b-dflash-fp8-vllm
 ```
 
-Server startup ~16 min. Full ladder ~7 hours.
+Server startup ~16 min. Full ladder (28 cells × n=3) ~10 hours.
 
 ## Results
 
-`tg128` aggregate tok/s (sum across concurrent requests). Single DGX Spark GB10, 122 GiB unified memory.
+`tg128` aggregate tok/s (sum across concurrent requests), n=3. Single DGX Spark GB10, 122 GiB unified memory.
 
 | depth | c=1 | c=2 | c=5 | c=10 |
 |---:|---:|---:|---:|---:|
-| 0 | 26.29 | 39.43 | 71.90 | **101.75** |
-| 4096 | 22.31 | 38.37 | 65.71 | 70.63 |
-| 8192 | 23.42 | 39.10 | 51.29 | 18.30 |
-| 16384 | 24.38 | 27.68 | 11.77 | 7.46 |
-| 32768 | 16.50 | 20.61 | 4.27 | 3.11 |
-| 65535 | 13.08 | 5.64 | 1.88 | 1.55 |
-| 100000 | 8.11 | 2.24 | 1.09 | _pending_ |
+| 0 | 28.30 | 42.11 | 70.57 | **89.00** |
+| 4096 | 21.79 | 41.03 | 60.32 | 31.81 |
+| 8192 | 21.19 | 39.19 | 28.27 | 13.73 |
+| 16384 | 21.13 | 32.44 | 19.69 | 7.26 |
+| 32768 | 19.70 | 24.53 | 7.06 | 3.34 |
+| 65535 | 10.25 | 17.77 | 2.19 | 1.50 |
+| 100000 | 9.40 | 13.97 | 1.15 | 0.93 |
 
 ## Pitfalls
 
