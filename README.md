@@ -24,8 +24,25 @@ recipe via pull request and make it available to every sparkrun user.
 Community recipes are run with the `@community` prefix:
 
 ```bash
-sparkrun run @community/my-awesome-recipe
+sparkrun run @community/awesome-recipe-username
 ```
+
+## Directory Structure Guidance
+
+You should follow the following directory structure:
+
+recipes/{model}/{user}/{model}-{quant}-{mtp}-{runtime}-{user}.yaml
+
+* You can add a README.md and supporting files under recipes/{model}/{user}; however, note that
+  only the recipe yaml file will be considered part of the recipe.
+* The model name should come first for tab completion at the command line.
+* The recipe filename is the canonical lookup for the recipe, so it cannot overlap with other recipes and should provide
+  sufficient data to understand the key inputs.
+* If quantization is not applicable, still provide the native dtype (e.g. bf16 for bfloat16, fp8, etc.) for clarity. (re: {quant})
+* If MTP/dflash/etc. not applicable, then leave it out. (re: {mtp})
+* All community recipes should include your username at the end of the recipe filename for differentiation.
+
+NOTE: Integration with Spark Arena Benchmarks coming soon!
 
 ## Submit a Recipe
 
@@ -33,8 +50,9 @@ sparkrun run @community/my-awesome-recipe
 2. **Create** your recipe YAML in `recipes/`:
    ```
    recipes/
-     my-model-vllm/
-       recipe.yaml
+     model-name/
+       user-name/
+         {model}-{quant}-{mtp}-{runtime}-{user}.yaml
    ```
 3. **Open a pull request** — describe what the recipe runs, which runtime it targets, and expected VRAM usage
 4. Once merged, your recipe is live for everyone
