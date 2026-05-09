@@ -1,0 +1,44 @@
+recipe_version: "2"
+model: Intel/Qwen3.5-122B-A10B-int4-AutoRound
+runtime: vllm
+container: vllm-qwen35-v2:latest
+
+metadata:
+  description: |
+    Qwen3.5-122B-A10B with Hybrid INT4+FP8 quantization, MTP-2 speculative decoding,
+    INT8 LM Head v2, and FlashInfer attention on a single DGX Spark GB10 (128 GiB unified memory).
+    Uses albond/DGX_Spark_Qwen3.5-122B-A10B-AR-INT4 build pipeline (V2.3).
+    Achieves ~50 tok/s average, peak 53.8 tok/s.
+  maintainer: "@Taremimi7710"
+  model_params: 122B
+  model_dtype: int4
+  kv_dtype: bfloat16
+  quantization: autoround-hybrid-int4fp8
+
+solo_only: true
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.90
+  max_model_len: 262144
+  served_model_name: qwen
+  reasoning_parser: qwen3
+  attention_backend: FLASHINFER
+  speculative_config: '{"method":"mtp","num_speculative_tokens":2}'
+
+env:
+  TORCH_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_CUDA_ARCH_LIST: "12.1a"
+
+command: |
+  vllm serve {model} \
+    --served-model-name {served_model_name} \
+    --host {host} --port {port} \
+    --max-model-len {max_model_len} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --reasoning-parser {reasoning_parser} \
+    --attention-backend {attention_backend} \
+    --speculative-config '{speculative_config}' \
+    --trust-remote-code
