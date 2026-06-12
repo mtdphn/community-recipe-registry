@@ -1,0 +1,85 @@
+recipe_version: "2"
+model: Intel/Qwen3.6-35B-A3B-int4-mixed-AutoRound
+runtime: vllm
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+metadata:
+  description: >
+    Qwen3.6-35B-A3B AutoRound int4-mixed + DFlash k=3 — production daily-driver
+    config, measured at 69.2 tok/s single-stream decode (prefill-separated,
+    temperature 0, median of 3) on a single DGX Spark. 12.7% faster than the
+    4.75-bit compressed-tensors build of the same model under the same ruler,
+    with an identical 18/18 pass rate on a deterministic coding gate. The
+    AutoRound build keeps the full vision tower: this recipe defaults to
+    text-only for memory headroom, override extra_flags to enable vision (see
+    below). gpu_memory_utilization defaults to 0.5 so the desktop and
+    co-resident services survive on unified memory; raise it on a dedicated
+    box. Method and raw numbers:
+    https://sovgrid.org/blog/qwen3-35b-quant-comparison-autoround-prismaquant-fp8/
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  served_model_name: qwen3.6-35b
+  gpu_memory_utilization: 0.5
+  dtype: auto
+  kv_cache_dtype: auto
+  max_model_len: 262144
+  max_num_batched_tokens: 32768
+  max_num_seqs: 4
+  attention_backend: flash_attn
+  load_format: fastsafetensors
+  quantization: gptq
+  tool_call_parser: qwen3_coder
+  reasoning_parser: qwen3
+  performance_mode: throughput
+  optimization_level: 3
+  # text-only by default (the measured config). The AutoRound build ships the
+  # full vision tower; launch with `-o extra_flags=` (empty) to load it and
+  # accept images. Verified working on GB10.
+  extra_flags: --language-model-only
+  speculative_config: '{"method":"dflash","model":"z-lab/Qwen3.6-35B-A3B-DFlash","num_speculative_tokens":3}'
+  default_chat_template_kwargs: '{"enable_thinking":false}'
+  override_generation_config: '{"temperature":0.6,"top_p":0.95,"top_k":20,"min_p":0.0,"presence_penalty":0.0,"repetition_penalty":1.0}'
+
+env:
+  VLLM_FLASHINFER_MOE_BACKEND: latency
+  VLLM_HTTP_TIMEOUT_KEEP_ALIVE: "600"
+  VLLM_MARLIN_USE_ATOMIC_ADD: "1"
+  VLLM_TEST_FORCE_FP8_MARLIN: "1"
+  VLLM_TUNED_CONFIG_FOLDER: /workspace/moe-configs
+  TORCH_MATMUL_PRECISION: high
+  TORCH_CUDA_ARCH_LIST: 12.1a
+  FLASHINFER_CUDA_ARCH_LIST: 12.1a
+
+executor_config:
+  restart_policy: on-failure
+
+command: |
+  vllm serve {model} \
+      --served-model-name {served_model_name} \
+      --host {host} \
+      --port {port} \
+      --tensor-parallel-size {tensor_parallel} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --dtype {dtype} \
+      --kv-cache-dtype {kv_cache_dtype} \
+      --max-model-len {max_model_len} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --attention-backend {attention_backend} \
+      --load-format {load_format} \
+      --quantization {quantization} \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --trust-remote-code \
+      --enable-auto-tool-choice \
+      --tool-call-parser {tool_call_parser} \
+      --reasoning-parser {reasoning_parser} \
+      --performance-mode {performance_mode} \
+      --optimization-level {optimization_level} \
+      {extra_flags} \
+      --default-chat-template-kwargs '{default_chat_template_kwargs}' \
+      --override-generation-config '{override_generation_config}' \
+      --speculative-config '{speculative_config}'
