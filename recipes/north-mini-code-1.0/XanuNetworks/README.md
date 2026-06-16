@@ -13,15 +13,24 @@ Both use the pullable `ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest` image (
 - VRAM: FP8 ~28 GB weights, NVFP4 ~17 GB weights; `gpu_memory_utilization 0.7` (sized so the `spark-arena-v1` 100K-depth × 10-concurrency point runs without KV preemption).
 
 ## Benchmarks (DGX Spark GB10, `spark-arena-v1`)
-Decode throughput (tok/s), concurrency 1 → 10:
+
+Two standard metrics — they measure different things:
+- **Decode** = token generation, one token per step, memory-bound → tens of tok/s on Spark-class bandwidth (~273 GB/s).
+- **Prefill** = prompt processing, the whole prompt in parallel, compute-bound → ~100× decode. It equals `prompt_size ÷ TTFT`, so the prefill figures below are just the measured TTFT expressed as tok/s.
+
+**Decode throughput** (tok/s) — *per-user at concurrency 1 → aggregate at concurrency 10*:
 
 | depth | FP8 | NVFP4 |
 |------:|-----------|-----------|
-| 0       | 33.4 → 107.2 | **56.7 → 177.9** |
-| 32,768  | 31.1 → 72.4  | **48.5 → 103.4** |
-| 100,000 | 28.6 → 46.6  | **40.0 → 57.0**  |
+| 0       | 33.4/user → 107 agg | **56.7/user → 178 agg** |
+| 32,768  | 31.1/user → 72 agg  | **48.5/user → 103 agg** |
+| 100,000 | 28.6/user → 47 agg  | **40.0/user → 57 agg**  |
 
-Prefill (depth 0): FP8 ~5,700 tok/s, NVFP4 ~9,400 tok/s. **NVFP4 is ~1.4–1.7× faster than FP8 across decode, prefill, and TTFT**, via FlashInfer-TRTLLM FP4 MoE on the GB10's FP4 tensor cores.
+*(per-user rate falls as concurrency rises — e.g. FP8 ~13 tok/s/user at 10 concurrent.)*
+
+**Prefill (prompt processing) @ depth 0:** FP8 ~5,700 tok/s, NVFP4 ~9,400 tok/s — i.e. TTFT of **362 ms / 221 ms** for a 2,048-token prompt.
+
+**Net: NVFP4 ≈ 1.4–1.7× faster than FP8** across decode, prefill, and TTFT (FlashInfer-TRTLLM FP4 MoE on the GB10's FP4 tensor cores).
 
 ## Quality
 NVFP4 matches FP8 on HumanEval pass@1 (90.2% each; bf16 90.9%) — no measurable quality loss from 4-bit.
