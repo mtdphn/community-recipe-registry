@@ -1,0 +1,48 @@
+recipe_version: "2"
+# North Mini Code 1.0 — NVFP4 (single node) — Spark Arena variant
+# Same pullable spark-arena nightly image; model is our published NVFP4 quant.
+model: XanuNetworks/North-Mini-Code-1.0-NVFP4
+runtime: vllm
+container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
+
+min_nodes: 1
+max_nodes: 1
+
+metadata:
+  description: "North Mini Code 1.0 NVFP4 (4-bit) — Cohere 30B/3B-active MoE agentic coding model (single node). Submitted by @XanuNetworks."
+  maintainer: "XanuNetworks"
+  category: agent
+  model_params: 30B
+  model_dtype: nvfp4
+  quantization: compressed-tensors
+  quant_bits: 4
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.7
+  max_model_len: 262144
+  kv_cache_dtype: fp8
+  served_model_name: north-mini-code-nvfp4
+  tool_call_parser: cohere_command4
+  reasoning_parser: cohere_command4
+
+pre_exec:
+  - "python3 -m pip install cohere_melody"
+
+command: |
+  vllm serve \
+      {model} \
+      --served-model-name {served_model_name} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      -tp {tensor_parallel} \
+      --host {host} \
+      --port {port} \
+      --max-model-len {max_model_len} \
+      --enable-auto-tool-choice \
+      --tool-call-parser {tool_call_parser} \
+      --reasoning-parser {reasoning_parser} \
+      --kv-cache-dtype {kv_cache_dtype} \
+      --enable-prefix-caching \
+      --trust-remote-code
