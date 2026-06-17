@@ -1,7 +1,7 @@
 recipe_version: "2"
 # North Mini Code 1.0 — FP8 (single node) — Spark Arena baseline
 # Uses the pullable spark-arena nightly image (self-consistent torch 2.11.0 + vLLM
-# with Cohere2MoeForCausalLM). cohere_melody (cohere_command4 parsers) added at launch.
+# with Cohere2MoeForCausalLM). cohere_melody (cohere_command4 parsers) installed via pre_exec (root).
 model: CohereLabs/North-Mini-Code-1.0-fp8
 runtime: vllm
 container: ghcr.io/spark-arena/dgx-vllm-eugr-nightly:latest
@@ -27,8 +27,10 @@ defaults:
   tool_call_parser: cohere_command4
   reasoning_parser: cohere_command4
 
+pre_exec:
+  - "python3 -m pip install cohere_melody"
+
 command: |
-  python3 -m pip install cohere_melody && \
   vllm serve \
       {model} \
       --served-model-name {served_model_name} \

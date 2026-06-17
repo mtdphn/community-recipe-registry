@@ -28,8 +28,10 @@ defaults:
   tool_call_parser: cohere_command4
   reasoning_parser: cohere_command4
 
+pre_exec:
+  - "python3 -m pip install cohere_melody"
+
 command: |
-  python3 -m pip install cohere_melody && \
   vllm serve \
       {model} \
       --served-model-name {served_model_name} \
