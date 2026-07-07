@@ -7,14 +7,17 @@ max_nodes: 2
 
 metadata:
   description: |
-    DeepSeek V4 Flash DSpark — NVFP4 KV cache, DSpark speculative decoding,
-    B12X MoE backend. 2× DGX Spark TP=2 over RoCE/IB.
+    DeepSeek V4 Flash DSpark — fp8_ds_mla KV cache, DSpark speculative decoding,
+    B12X MoE backend. 2x DGX Spark TP=2 over RoCE/IB.
     Verified ~49 tok/s mixed, 54-60 tok/s structured agentic.
   maintainer: "@mtdphn"
   category: chat
   model_params: 680B
   model_dtype: nvfp4
-  kv_dtype: nvfp4_ds_mla
+  kv_dtype: fp8_ds_mla
+
+mods:
+  - setup-dspark
 
 defaults:
   port: 8000
@@ -26,7 +29,7 @@ defaults:
   max_num_seqs: 12
   max_num_batched_tokens: 8192
   max_cudagraph_capture_size: 12
-  kv_cache_dtype: nvfp4_ds_mla
+  kv_cache_dtype: fp8_ds_mla
   block_size: 256
   tool_call_parser: deepseek_v4
   reasoning_parser: deepseek_v4
@@ -37,8 +40,8 @@ defaults:
   enable_chunked_prefill: true
   async_scheduling: true
   enable_flashinfer_autotune: true
-  # DSpark spec decode: 5 tokens, probabilistic (Patch 3 garble-safe)
-  speculative_config: '{"method": "dspark", "num_speculative_tokens": 5, "draft_sample_method": "probabilistic"}'
+  # DSpark spec decode: 3 tokens, probabilistic (Patch 3 garble-safe)
+  speculative_config: '{"method": "dspark", "num_speculative_tokens": 3, "draft_sample_method": "probabilistic"}'
   reasoning_config: '{"reasoning_parser": "deepseek_v4", "reasoning_start_str": " thinking", "reasoning_end_str": " response"}'
   default_chat_template_kwargs: '{"thinking": false}'
   generation_config: vllm
