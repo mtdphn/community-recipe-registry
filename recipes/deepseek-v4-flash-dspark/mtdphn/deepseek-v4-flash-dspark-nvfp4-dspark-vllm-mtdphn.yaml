@@ -1,0 +1,123 @@
+recipe_version: "2"
+model: fraserprice/DeepSeek-V4-Flash-DSpark
+runtime: vllm
+container: vllm-dspark-runtime:dspark-nvfp4-stage-c
+min_nodes: 2
+max_nodes: 2
+
+metadata:
+  description: |
+    DeepSeek V4 Flash DSpark — NVFP4 KV cache, DSpark speculative decoding,
+    B12X MoE backend. 2× DGX Spark TP=2 over RoCE/IB.
+    Verified ~49 tok/s mixed, 54-60 tok/s structured agentic.
+  maintainer: "@mtdphn"
+  category: chat
+  model_params: 680B
+  model_dtype: nvfp4
+  kv_dtype: nvfp4_ds_mla
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  served_model_name: deepseek-v4-flash-dspark
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.80
+  max_model_len: 350000
+  max_num_seqs: 12
+  max_num_batched_tokens: 8192
+  max_cudagraph_capture_size: 12
+  kv_cache_dtype: nvfp4_ds_mla
+  block_size: 256
+  tool_call_parser: deepseek_v4
+  reasoning_parser: deepseek_v4
+  tokenizer_mode: deepseek_v4
+  distributed_executor_backend: mp
+  enable_prefix_caching: true
+  enable_auto_tool_choice: true
+  enable_chunked_prefill: true
+  async_scheduling: true
+  enable_flashinfer_autotune: true
+  # DSpark spec decode: 5 tokens, probabilistic (Patch 3 garble-safe)
+  speculative_config: '{"method": "dspark", "num_speculative_tokens": 5, "draft_sample_method": "probabilistic"}'
+  reasoning_config: '{"reasoning_parser": "deepseek_v4", "reasoning_start_str": " thinking", "reasoning_end_str": " response"}'
+  default_chat_template_kwargs: '{"thinking": false}'
+  generation_config: vllm
+
+env:
+  # B12X NVFP4 MoE backend — =1 = 50-60 tok/s; =0 = DEEPGEMM_MXFP4 ~29 tok/s
+  VLLM_USE_B12X_MOE: "1"
+  VLLM_USE_B12X_WO_PROJECTION: "1"
+  VLLM_B12X_W4A16_FORCE_BLOCKS_PER_SM: "0"
+  VLLM_B12X_W4A16_FORCE_BLOCKS_MAX_M: "16"
+  B12X_W4A16_TC_DECODE: "0"
+  # DSpark tuning
+  VLLM_DSPARK_CONFIDENCE_THRESHOLD: "0.0"
+  VLLM_DSPARK_CONFIDENCE_SCHEDULER: "off"
+  VLLM_DSPARK_LOCAL_ARGMAX: "1"
+  VLLM_DSPARK_REPLICATE_MARKOV_W1: "1"
+  VLLM_DSPARK_GPU_REJECTED_CONTEXT_MASK: "1"
+  VLLM_DSPARK_REFERENCE_KV_QUANT_DEQUANT: "0"
+  VLLM_DSPARK_HARDWARE_SCHEDULER_EARLY_STOP: "1"
+  VLLM_DSV4_DSPARK_DEFER_TARGET_CAPTURE: "0"
+  # MLA sparse attention
+  VLLM_TRITON_MLA_SPARSE: "1"
+  VLLM_SPARSE_INDEXER_MAX_LOGITS_MB: "256"
+  VLLM_USE_FLASHINFER_SAMPLER: "1"
+  # Memory / CUDA
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
+  VLLM_SKIP_INIT_MEMORY_CHECK: "1"
+  VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
+  TORCH_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_DISABLE_VERSION_CHECK: "1"
+  TILELANG_CLEANUP_TEMP_FILES: "1"
+  DG_JIT_USE_NVRTC: "0"
+  DG_JIT_NVCC_COMPILER: "/opt/env/bin/nvcc"
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+  # NCCL / RoCE
+  NCCL_NET: "IB"
+  NCCL_IB_DISABLE: "0"
+  NCCL_CUMEM_ENABLE: "0"
+  NCCL_IGNORE_CPU_AFFINITY: "1"
+  NCCL_DEBUG: "WARN"
+  NCCL_NVLS_ENABLE: "0"
+  # HF Hub (model pre-synced to cache)
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  HF_HUB_DISABLE_XET: "1"
+
+executor_config:
+  shm_size: 64gb
+  restart_policy: unless-stopped
+  gpus: all
+  network: host
+  ipc: host
+  privileged: true
+
+command: |
+  vllm serve {model} \
+    --served-model-name {served_model_name} \
+    --host {host} \
+    --port {port} \
+    --trust-remote-code \
+    --tensor-parallel-size {tensor_parallel} \
+    --kv-cache-dtype {kv_cache_dtype} \
+    --block-size {block_size} \
+    --max-model-len {max_model_len} \
+    --max-num-seqs {max_num_seqs} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --max-cudagraph-capture-size {max_cudagraph_capture_size} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --enable-prefix-caching \
+    --async-scheduling \
+    --enable-chunked-prefill \
+    --speculative-config '{speculative_config}' \
+    --tokenizer-mode {tokenizer_mode} \
+    --distributed-executor-backend {distributed_executor_backend} \
+    --tool-call-parser {tool_call_parser} \
+    --enable-auto-tool-choice \
+    --reasoning-parser {reasoning_parser} \
+    --reasoning-config '{reasoning_config}' \
+    --default-chat-template-kwargs '{default_chat_template_kwargs}' \
+    --generation-config {generation_config} \
+    --enable-flashinfer-autotune
